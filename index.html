@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="my" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Expiry Date Analyzer & Separator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Padauk', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col">
+
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="calendar-clock" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white">Stock Expiry Date Analyzer</h1>
+                    <p class="text-xs text-slate-400">Stock Code, Description, Vendor, Year/Month Timeline & Expiry Date Columns Analyzer</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="loadDemoData()" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                    Demo Data ဖြည့်ကြည့်ရန်
+                </button>
+                <button onclick="togglePythonModal()" class="px-3 py-1.5 text-xs font-medium bg-indigo-900/50 hover:bg-indigo-900/80 text-indigo-200 border border-indigo-700/50 rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="code-2" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    Python Script ကြည့်ရန်
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Upload Box -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="file-up" class="w-5 h-5 text-indigo-600"></i>
+                        Excel File သို့မဟုတ် CSV ထည့်သွင်းရန်
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Stock Code, Description, Last Vendor, Year/Month နှင့် Expiry Date များပါဝင်သော Excel ဖိုင်များကို ထည့်သွင်းပါ။
+                    </p>
+                </div>
+
+                <div id="dropZone" class="mt-4 border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50 transition-all rounded-xl p-8 text-center cursor-pointer flex flex-col items-center justify-center">
+                    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden">
+                    <div class="p-3 bg-indigo-100 text-indigo-600 rounded-full mb-3">
+                        <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+                    </div>
+                    <p class="text-sm font-medium text-slate-700">Excel ဖိုင်ကို ဤနေရာသို့ Drag & Drop ဆွဲထည့်ပါ သို့မဟုတ် <span class="text-indigo-600 underline">နှိပ်၍ ရွေးချယ်ပါ</span></p>
+                    <p class="text-xs text-slate-400 mt-1">ပံ့ပိုးမှုပေးသော ဖိုင်အမျိုးအစားများ: .xlsx, .xls, .csv</p>
+                </div>
+
+                <div id="fileInfo" class="hidden mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center justify-between">
+                    <span id="fileNameDisplay" class="font-medium">filename.xlsx</span>
+                    <button onclick="clearData()" class="text-emerald-700 hover:text-emerald-900 font-bold">ရှင်းလင်းမည်</button>
+                </div>
+            </div>
+
+            <!-- Quick Settings -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+                        Column ရွေးချယ်ရန် သတ်မှတ်ချက်များ
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Excel မှ ခေါင်းစဉ်များကို ရွေးချယ်ပေးပါ</p>
+                </div>
+
+                <div class="space-y-3 my-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Stock Code</label>
+                            <select id="stockCodeCol" disabled class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                                <option value="">ဖိုင်ထည့်ပါ...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Description</label>
+                            <select id="descCol" disabled class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                                <option value="">ဖိုင်ထည့်ပါ...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Last Vendor</label>
+                            <select id="vendorCol" disabled class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                                <option value="">ဖိုင်ထည့်ပါ...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-700 mb-1">Expiry Date</label>
+                            <select id="expiryDateCol" disabled class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                                <option value="">ဖိုင်ထည့်ပါ...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-700 mb-1">Expiry Qty (အရေအတွက် Column)</label>
+                        <select id="expiryQtyCol" disabled class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                            <option value="">ဖိုင်ထည့်ပါ...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-700 mb-1">သတိပေးမည့်ရက်များ (Days Warning)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" id="warnDays1" value="30" class="text-xs p-2 border border-slate-300 rounded-lg text-center font-medium placeholder-slate-400" placeholder="Warning 1">
+                            <input type="number" id="warnDays2" value="60" class="text-xs p-2 border border-slate-300 rounded-lg text-center font-medium placeholder-slate-400" placeholder="Warning 2">
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="processData()" id="processBtn" disabled class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-semibold rounded-lg shadow transition flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4"></i> Matrix Data ခွဲထုတ်မည်
+                </button>
+            </div>
+        </div>
+
+        <div id="summarySection" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-slate-600">
+                <p class="text-xs text-slate-500 font-medium">စုစုပေါင်း ပစ္စည်းအမျိုးအစား</p>
+                <h3 id="statTotal" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                <span id="statUniqueCodes" class="text-[10px] text-slate-400">Total Items</span>
+            </div>
+            
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                <p class="text-xs text-red-600 font-medium">သက်တမ်းကုန်ပြီး (Expired)</p>
+                <h3 id="statExpired" class="text-2xl font-bold text-red-600 mt-1">0</h3>
+                <span id="statExpiredQty" class="text-[10px] text-red-500 font-semibold">Qty: 0</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-orange-500">
+                <p class="text-xs text-orange-600 font-medium">ရက် ၃၀ အတွင်း</p>
+                <h3 id="stat30" class="text-2xl font-bold text-orange-600 mt-1">0</h3>
+                <span id="stat30Qty" class="text-[10px] text-orange-500 font-semibold">Qty: 0</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-amber-500">
+                <p class="text-xs text-amber-600 font-medium">ရက် ၆၀ အတွင်း</p>
+                <h3 id="stat60" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                <span id="stat60Qty" class="text-[10px] text-amber-500 font-semibold">Qty: 0</span>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                <p class="text-xs text-emerald-600 font-medium">သက်တမ်း စိတ်ချရ</p>
+                <h3 id="statSafe" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+                <span id="statSafeQty" class="text-[10px] text-emerald-500 font-semibold">Qty: 0</span>
+            </div>
+        </div>
+
+        <div id="resultsSection" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-4 justify-between items-center">
+                
+                <div class="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl">
+                    <button onclick="setViewMode('MATRIX')" id="modeMatrixBtn" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center gap-1.5 transition">
+                        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                        Year/Month & Expiry Date Matrix
+                    </button>
+                    <button onclick="setViewMode('LIST')" id="modeListBtn" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 hover:text-slate-900 flex items-center gap-1.5 transition">
+                        <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                        Detailed List
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                        <input type="text" id="searchInput" oninput="renderTable()" placeholder="Code, Description သို့ Vendor ဖြင့် ရှာမည်..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="exportToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2 whitespace-nowrap">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        Excel ပြန်ထုတ်မည် (Export)
+                    </button>
+                </div>
+            </div>
+
+            <div id="filterTabsRow" class="px-4 py-2 bg-slate-100/60 border-b border-slate-200 flex flex-wrap gap-2 text-xs font-medium">
+                <span class="text-slate-500 self-center text-[11px] font-semibold mr-1">Filter:</span>
+                <button onclick="filterTable('ALL')" id="tabALL" class="tab-btn px-3 py-1 rounded-lg bg-white shadow-sm text-indigo-700 font-semibold">အားလုံး</button>
+                <button onclick="filterTable('EXPIRED')" id="tabEXPIRED" class="tab-btn px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900">သက်တမ်းကုန် (Red)</button>
+                <button onclick="filterTable('WARN_30')" id="tabWARN_30" class="tab-btn px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900">၃၀ ရက်အတွင်း (Orange)</button>
+                <button onclick="filterTable('WARN_60')" id="tabWARN_60" class="tab-btn px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900">၆၀ ရက်အတွင်း (Yellow)</button>
+                <button onclick="filterTable('SAFE')" id="tabSAFE" class="tab-btn px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900">စိတ်ချရ (Green)</button>
+            </div>
+
+            <!-- Table View -->
+            <div class="overflow-x-auto">
+                <table id="mainDataTable" class="w-full text-left text-xs border-collapse">
+                    <thead id="tableHead" class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="emptyTableMessage" class="hidden p-8 text-center text-slate-400 text-xs">
+                ရှာဖွေမှုနှင့် ကိုက်ညီသော စာရင်းမရှိပါ။
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Global State Variables
+        let rawExcelData = [];
+        let parsedRows = []; 
+        let activeFilter = 'ALL';
+        let currentViewMode = 'MATRIX'; 
+
+        // DOM elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const stockCodeColSelect = document.getElementById('stockCodeCol');
+        const descColSelect = document.getElementById('descCol');
+        const vendorColSelect = document.getElementById('vendorCol');
+        const expiryDateColSelect = document.getElementById('expiryDateCol');
+        const expiryQtyColSelect = document.getElementById('expiryQtyCol');
+        const processBtn = document.getElementById('processBtn');
+
+        lucide.createIcons();
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-indigo-100/50');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-indigo-500', 'bg-indigo-100/50');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-indigo-100/50');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            document.getElementById('fileNameDisplay').innerText = file.name + ` (${(file.size/1024).toFixed(1)} KB)`;
+            document.getElementById('fileInfo').classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    rawExcelData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+
+                    if (rawExcelData.length < 2) {
+                        alert("Excel ဖိုင်ထဲတွင် Data အလုံအလောက်မရှိပါ သို့မဟုတ် ခေါင်းစဉ် (Header) မပါဝင်ပါ။");
+                        return;
+                    }
+
+                    populateColumnSelectors(rawExcelData);
+                } catch (err) {
+                    alert("ဖိုင်ဖတ်ရာတွင် အမှားအယွင်းရှိပါသည်: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function populateColumnSelectors(rows) {
+            stockCodeColSelect.innerHTML = '';
+            descColSelect.innerHTML = '';
+            vendorColSelect.innerHTML = '';
+            expiryDateColSelect.innerHTML = '';
+            expiryQtyColSelect.innerHTML = '';
+
+            let headerRowIndex = 0;
+            for (let r = 0; r < Math.min(rows.length, 5); r++) {
+                if (rows[r] && rows[r].some(c => c && (c.toString().toLowerCase().includes('code') || c.toString().toLowerCase().includes('description')))) {
+                    headerRowIndex = r;
+                    break;
+                }
+            }
+
+            const headers = rows[headerRowIndex] || rows[0];
+
+            // Add default optional choice for Qty
+            expiryQtyColSelect.add(new Option('မပါဝင်ပါ (အလိုအလျောက် ၁ ဟုယူမည်)', -1));
+
+            headers.forEach((h, index) => {
+                const headerText = h ? h.toString().trim() : `Column ${index + 1}`;
+                
+                stockCodeColSelect.add(new Option(headerText, index));
+                descColSelect.add(new Option(headerText, index));
+                vendorColSelect.add(new Option(headerText, index));
+                expiryDateColSelect.add(new Option(headerText, index));
+                expiryQtyColSelect.add(new Option(headerText, index));
+
+                const lower = headerText.toLowerCase();
+                if (lower.includes('code') || lower.includes('stock') || lower.includes('item')) {
+                    stockCodeColSelect.value = index;
+                }
+                if (lower.includes('desc') || lower.includes('name') || lower.includes('item name') || lower.includes('ပစ္စည်း')) {
+                    descColSelect.value = index;
+                }
+                if (lower.includes('vendor') || lower.includes('supplier') || lower.includes('seller') || lower.includes('last vendor')) {
+                    vendorColSelect.value = index;
+                }
+                if (lower.includes('date') || lower.includes('expiry') || lower.includes('exp')) {
+                    expiryDateColSelect.value = index;
+                }
+                if (lower.includes('qty') || lower.includes('quantity') || lower.includes('exp qty') || lower.includes('amount') || lower.includes('အရေအတွက်') || lower.includes('ပမာဏ')) {
+                    expiryQtyColSelect.value = index;
+                }
+            });
+
+            stockCodeColSelect.disabled = false;
+            descColSelect.disabled = false;
+            vendorColSelect.disabled = false;
+            expiryDateColSelect.disabled = false;
+            expiryQtyColSelect.disabled = false;
+            processBtn.disabled = false;
+        }
+
+        function parseDate(rawDate) {
+            if (!rawDate) return null;
+            if (rawDate instanceof Date) return isNaN(rawDate.getTime()) ? null : rawDate;
+
+            const str = String(rawDate).trim();
+            
+            const dmyMatch = str.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})$/);
+            if (dmyMatch) {
+                const d = parseInt(dmyMatch[1], 10);
+                const m = parseInt(dmyMatch[2], 10) - 1;
+                const y = parseInt(dmyMatch[3], 10);
+                return new Date(y, m, d);
+            }
+
+            const ymdMatch = str.match(/^(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})$/);
+            if (ymdMatch) {
+                const y = parseInt(ymdMatch[1], 10);
+                const m = parseInt(ymdMatch[2], 10) - 1;
+                const d = parseInt(ymdMatch[3], 10);
+                return new Date(y, m, d);
+            }
+
+            const parsed = new Date(str);
+            return isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        function formatDateDMY(d) {
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function processData() {
+            const stockColIdx = parseInt(stockCodeColSelect.value);
+            const descColIdx = parseInt(descColSelect.value);
+            const vendorColIdx = parseInt(vendorColSelect.value);
+            const expColIdx = parseInt(expiryDateColSelect.value);
+            const qtyColIdx = parseInt(expiryQtyColSelect.value);
+
+            const warn1 = parseInt(document.getElementById('warnDays1').value) || 30;
+            const warn2 = parseInt(document.getElementById('warnDays2').value) || 60;
+
+            parsedRows = [];
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            // Scan through rows and check all potential Expiry Date columns if multiple
+            for (let i = 1; i < rawExcelData.length; i++) {
+                const row = rawExcelData[i];
+                if (!row || row.length === 0) continue;
+
+                const stockCode = row[stockColIdx] ? row[stockColIdx].toString().trim() : '';
+                if (!stockCode || stockCode.toLowerCase().includes('stock code')) continue;
+
+                const description = row[descColIdx] ? row[descColIdx].toString().trim() : '-';
+                const lastVendor = row[vendorColIdx] ? row[vendorColIdx].toString().trim() : '-';
+
+                // Extract Expiry Qty
+                let rowQty = 1;
+                if (qtyColIdx >= 0 && row[qtyColIdx] !== undefined && row[qtyColIdx] !== '') {
+                    const parsedQty = parseFloat(row[qtyColIdx]);
+                    if (!isNaN(parsedQty)) rowQty = parsedQty;
+                }
+
+                // Find dates across row (check standard selected column or all rightmost columns)
+                const candidateDates = [];
+                if (row[expColIdx]) candidateDates.push(row[expColIdx]);
+
+                for (let c = expColIdx + 1; c < row.length; c++) {
+                    if (row[c]) candidateDates.push(row[c]);
+                }
+
+                candidateDates.forEach(rawDateStr => {
+                    const parsedDate = parseDate(rawDateStr);
+                    if (!parsedDate) return;
+
+                    parsedDate.setHours(0,0,0,0);
+                    const diffTime = parsedDate - today;
+                    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    let status = 'SAFE';
+                    if (daysLeft < 0) status = 'EXPIRED';
+                    else if (daysLeft <= warn1) status = 'WARN_30';
+                    else if (daysLeft <= warn2) status = 'WARN_60';
+
+                    parsedRows.push({
+                        id: i,
+                        stockCode: stockCode,
+                        description: description,
+                        lastVendor: lastVendor,
+                        qty: rowQty,
+                        dateObj: parsedDate,
+                        year: parsedDate.getFullYear(),
+                        month: parsedDate.getMonth() + 1,
+                        expiryDate: formatDateDMY(parsedDate),
+                        daysLeft: daysLeft,
+                        status: status
+                    });
+                });
+            }
+
+            updateDashboardStats();
+            document.getElementById('summarySection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+            renderTable();
+        }
+
+        function updateDashboardStats() {
+            let expired = 0, w30 = 0, w60 = 0, safe = 0;
+            let expiredQty = 0, w30Qty = 0, w60Qty = 0, safeQty = 0;
+            const uniqueCodes = new Set();
+
+            parsedRows.forEach(r => {
+                uniqueCodes.add(r.stockCode);
+                if (r.status === 'EXPIRED') {
+                    expired++;
+                    expiredQty += r.qty;
+                } else if (r.status === 'WARN_30') {
+                    w30++;
+                    w30Qty += r.qty;
+                } else if (r.status === 'WARN_60') {
+                    w60++;
+                    w60Qty += r.qty;
+                } else {
+                    safe++;
+                    safeQty += r.qty;
+                }
+            });
+
+            document.getElementById('statTotal').innerText = uniqueCodes.size;
+            document.getElementById('statUniqueCodes').innerText = `Total Batches: ${parsedRows.length} ခု`;
+            
+            document.getElementById('statExpired').innerText = expired;
+            document.getElementById('statExpiredQty').innerText = `Qty: ${expiredQty.toLocaleString()}`;
+
+            document.getElementById('stat30').innerText = w30;
+            document.getElementById('stat30Qty').innerText = `Qty: ${w30Qty.toLocaleString()}`;
+
+            document.getElementById('stat60').innerText = w60;
+            document.getElementById('stat60Qty').innerText = `Qty: ${w60Qty.toLocaleString()}`;
+
+            document.getElementById('statSafe').innerText = safe;
+            document.getElementById('statSafeQty').innerText = `Qty: ${safeQty.toLocaleString()}`;
+        }
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            const matrixBtn = document.getElementById('modeMatrixBtn');
+            const listBtn = document.getElementById('modeListBtn');
+
+            if (mode === 'MATRIX') {
+                matrixBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center gap-1.5 transition';
+                listBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 hover:text-slate-900 flex items-center gap-1.5 transition';
+            } else {
+                listBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white shadow-sm flex items-center gap-1.5 transition';
+                matrixBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 hover:text-slate-900 flex items-center gap-1.5 transition';
+            }
+
+            renderTable();
+        }
+
+        function filterTable(filter) {
+            activeFilter = filter;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'shadow-sm', 'text-indigo-700', 'font-semibold');
+                btn.classList.add('text-slate-600');
+            });
+            const activeTab = document.getElementById('tab' + filter);
+            if (activeTab) {
+                activeTab.classList.add('bg-white', 'shadow-sm', 'text-indigo-700', 'font-semibold');
+                activeTab.classList.remove('text-slate-600');
+            }
+            renderTable();
+        }
+
+        // Get Structured Matrix Data Grouped by Stock Code
+        function getGroupedMatrixData() {
+            const groupedMap = new Map();
+            const yearMonthBuckets = new Map(); // Key: "YYYY", Value: Set of Month numbers
+
+            parsedRows.forEach(item => {
+                const code = item.stockCode;
+                if (!groupedMap.has(code)) {
+                    groupedMap.set(code, {
+                        stockCode: item.stockCode,
+                        description: item.description,
+                        lastVendor: item.lastVendor,
+                        items: []
+                    });
+                }
+                groupedMap.get(code).items.push(item);
+
+                // Collect Year/Month
+                if (!yearMonthBuckets.has(item.year)) {
+                    yearMonthBuckets.set(item.year, new Set());
+                }
+                yearMonthBuckets.get(item.year).add(item.month);
+            });
+
+            // Sort Year and Month structure
+            const sortedYears = Array.from(yearMonthBuckets.keys()).sort((a,b) => a - b);
+            const timelineStructure = [];
+
+            sortedYears.forEach(year => {
+                const months = Array.from(yearMonthBuckets.get(year)).sort((a,b) => a - b);
+                timelineStructure.push({
+                    year: year,
+                    months: months
+                });
+            });
+
+            let maxExpiryDatesCount = 0;
+            const groupedList = [];
+
+            groupedMap.forEach((group) => {
+                group.items.sort((a, b) => a.dateObj - b.dateObj);
+                if (group.items.length > maxExpiryDatesCount) {
+                    maxExpiryDatesCount = group.items.length;
+                }
+
+                const matchesFilter = (activeFilter === 'ALL') || group.items.some(i => i.status === activeFilter);
+                if (matchesFilter) {
+                    groupedList.push(group);
+                }
+            });
+
+            if (maxExpiryDatesCount < 5) maxExpiryDatesCount = 5; // Default 5 columns like in screenshot
+
+            return { groupedList, timelineStructure, maxExpiryDatesCount };
+        }
+
+        function renderTable() {
+            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (currentViewMode === 'MATRIX') {
+                const { groupedList, timelineStructure, maxExpiryDatesCount } = getGroupedMatrixData();
+
+                let filtered = groupedList.filter(g => 
+                    g.stockCode.toLowerCase().includes(searchVal) || 
+                    g.description.toLowerCase().includes(searchVal) ||
+                    g.lastVendor.toLowerCase().includes(searchVal)
+                );
+
+                if (filtered.length === 0) {
+                    document.getElementById('emptyTableMessage').classList.remove('hidden');
+                    return;
+                } else {
+                    document.getElementById('emptyTableMessage').classList.add('hidden');
+                }
+
+                // Row 1 Header: Main headers + Merged Year headers + Merged Expiry Date Header
+                let hRow1 = `
+                    <tr class="bg-slate-800 text-white border-b border-slate-700">
+                        <th rowspan="2" class="py-2.5 px-3 border-r border-slate-700 font-bold">Stock Code</th>
+                        <th rowspan="2" class="py-2.5 px-3 border-r border-slate-700 font-bold min-w-[200px]">Description</th>
+                        <th rowspan="2" class="py-2.5 px-3 border-r border-slate-700 font-bold min-w-[160px]">Last Vendor</th>
+                `;
+
+                timelineStructure.forEach(yt => {
+                    hRow1 += `<th colspan="${yt.months.length}" class="py-1.5 px-2 text-center border-r border-slate-700 bg-slate-900 font-bold text-amber-400">${yt.year}</th>`;
+                });
+
+                for (let c = 1; c <= maxExpiryDatesCount; c++) {
+                    hRow1 += `<th rowspan="2" class="py-2.5 px-3 text-center border-r border-slate-700 bg-slate-800 min-w-[110px]">Expiry Date</th>`;
+                }
+                hRow1 += `</tr>`;
+
+                // Row 2 Header: Month numbers under each year
+                let hRow2 = `<tr class="bg-slate-700 text-slate-200 border-b border-slate-600 text-center font-bold">`;
+                timelineStructure.forEach(yt => {
+                    yt.months.forEach(m => {
+                        hRow2 += `<th class="py-1.5 px-2 border-r border-slate-600 min-w-[36px]">${m}</th>`;
+                    });
+                });
+                hRow2 += `</tr>`;
+
+                tableHead.innerHTML = hRow1 + hRow2;
+
+                // Matrix Body Rows
+                filtered.forEach((group) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition border-b border-slate-200 font-medium text-slate-800';
+
+                    let rowHTML = `
+                        <td class="py-2.5 px-3 font-bold border-r border-slate-200 font-mono text-slate-900">${group.stockCode}</td>
+                        <td class="py-2.5 px-3 border-r border-slate-200 text-slate-800">${group.description}</td>
+                        <td class="py-2.5 px-3 border-r border-slate-200 text-slate-600">${group.lastVendor}</td>
+                    `;
+
+                    // Populate Month Cells with Expiry Quantity & Detailed Tooltip Breakdown
+                    timelineStructure.forEach(yt => {
+                        yt.months.forEach(m => {
+                            const monthItems = group.items.filter(i => i.year === yt.year && i.month === m);
+                            if (monthItems.length > 0) {
+                                const totalQtyInMonth = monthItems.reduce((sum, item) => sum + item.qty, 0);
+                                const breakdownText = monthItems.map(i => `${i.expiryDate}: ${i.qty.toLocaleString()} Pcs`).join(' \n');
+
+                                rowHTML += `
+                                    <td title="${breakdownText}" class="py-2.5 px-1 text-center border-r border-slate-200 bg-indigo-50/80 font-bold text-indigo-800 cursor-help transition hover:bg-indigo-100">
+                                        <div class="flex flex-col items-center">
+                                            <span>${totalQtyInMonth.toLocaleString()}</span>
+                                            ${monthItems.length > 1 ? `<span class="text-[9px] text-indigo-600 font-normal">(${monthItems.length} dates)</span>` : ''}
+                                        </div>
+                                    </td>
+                                `;
+                            } else {
+                                rowHTML += `<td class="py-2.5 px-1 text-center border-r border-slate-200 text-slate-300">-</td>`;
+                            }
+                        });
+                    });
+
+                    // Populate Expiry Date Columns with specific Date AND specific Quantity
+                    for (let c = 0; c < maxExpiryDatesCount; c++) {
+                        const item = group.items[c];
+                        if (item) {
+                            let badgeBg = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                            if (item.status === 'EXPIRED') badgeBg = 'bg-red-100 text-red-800 border-red-300';
+                            else if (item.status === 'WARN_30') badgeBg = 'bg-orange-100 text-orange-800 border-orange-300';
+                            else if (item.status === 'WARN_60') badgeBg = 'bg-amber-100 text-amber-800 border-amber-300';
+
+                            rowHTML += `
+                                <td class="py-2 px-2 border-r border-slate-200 text-center">
+                                    <div class="inline-flex flex-col items-center justify-center p-1.5 rounded-lg border ${badgeBg} min-w-[95px] shadow-xs">
+                                        <span class="font-mono text-[11px] font-bold leading-tight">${item.expiryDate}</span>
+                                        <span class="text-[10px] font-semibold opacity-90 border-t border-slate-300/50 mt-1 pt-0.5 w-full text-center flex justify-between px-1">
+                                            <span class="text-[9px] uppercase font-normal">Qty:</span>
+                                            <strong class="font-mono text-indigo-900">${item.qty.toLocaleString()}</strong>
+                                        </span>
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            rowHTML += `<td class="py-2.5 px-2 border-r border-slate-200 text-slate-300 text-center">-</td>`;
+                        }
+                    }
+
+                    tr.innerHTML = rowHTML;
+                    tableBody.appendChild(tr);
+                });
+
+            } else {
+                // Render Single Detailed List View
+                tableHead.innerHTML = `
+                    <tr class="bg-slate-800 text-white">
+                        <th class="py-3 px-4">စဉ်</th>
+                        <th class="py-3 px-4">Stock Code</th>
+                        <th class="py-3 px-4">Description</th>
+                        <th class="py-3 px-4">Last Vendor</th>
+                        <th class="py-3 px-4 text-center">Expiry Qty</th>
+                        <th class="py-3 px-4">Expiry Date (DD/MM/YYYY)</th>
+                        <th class="py-3 px-4">ကျန်ရှိရက် (Days Left)</th>
+                        <th class="py-3 px-4">အခြေအနေ (Status)</th>
+                    </tr>
+                `;
+
+                let filtered = parsedRows.filter(r => {
+                    const matchesFilter = (activeFilter === 'ALL') || (r.status === activeFilter);
+                    const matchesSearch = r.stockCode.toLowerCase().includes(searchVal) || 
+                                          r.description.toLowerCase().includes(searchVal) ||
+                                          r.lastVendor.toLowerCase().includes(searchVal);
+                    return matchesFilter && matchesSearch;
+                });
+
+                if (filtered.length === 0) {
+                    document.getElementById('emptyTableMessage').classList.remove('hidden');
+                    return;
+                } else {
+                    document.getElementById('emptyTableMessage').classList.add('hidden');
+                }
+
+                filtered.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+                    let badgeHTML = '';
+                    if (item.status === 'EXPIRED') {
+                        badgeHTML = `<span class="px-2.5 py-1 text-[11px] font-semibold bg-red-100 text-red-700 rounded-full inline-flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> သက်တမ်းကုန်ပြီး</span>`;
+                    } else if (item.status === 'WARN_30') {
+                        badgeHTML = `<span class="px-2.5 py-1 text-[11px] font-semibold bg-orange-100 text-orange-700 rounded-full inline-flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ရက် ၃၀ အတွင်း</span>`;
+                    } else if (item.status === 'WARN_60') {
+                        badgeHTML = `<span class="px-2.5 py-1 text-[11px] font-semibold bg-amber-100 text-amber-700 rounded-full inline-flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i> ရက် ၆၀ အတွင်း</span>`;
+                    } else {
+                        badgeHTML = `<span class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-100 text-emerald-700 rounded-full inline-flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> စိတ်ချရ</span>`;
+                    }
+
+                    let daysText = item.daysLeft < 0 
+                        ? `<span class="text-red-600 font-bold">${Math.abs(item.daysLeft)} ရက် ကျော်လွန်</span>`
+                        : `<span class="font-medium text-slate-700">${item.daysLeft} ရက် ကျန်</span>`;
+
+                    tr.innerHTML = `
+                        <td class="py-3 px-4 text-slate-400 font-mono">${index + 1}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-900 font-mono">${item.stockCode}</td>
+                        <td class="py-3 px-4 text-slate-800">${item.description}</td>
+                        <td class="py-3 px-4 text-slate-600">${item.lastVendor}</td>
+                        <td class="py-3 px-4 text-center font-bold font-mono text-indigo-700">${item.qty.toLocaleString()}</td>
+                        <td class="py-3 px-4 font-mono font-bold text-slate-800">${item.expiryDate}</td>
+                        <td class="py-3 px-4">${daysText}</td>
+                        <td class="py-3 px-4">${badgeHTML}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            }
+
+            lucide.createIcons();
+        }
+
+        // Export Matrix and Detailed Data to Excel
+        function exportToExcel() {
+            if (parsedRows.length === 0) return;
+
+            const wb = XLSX.utils.book_new();
+            const { groupedList, timelineStructure, maxExpiryDatesCount } = getGroupedMatrixData();
+
+            const matrixExportRows = groupedList.map(g => {
+                const rowObj = {
+                    'Stock Code': g.stockCode,
+                    'Description': g.description,
+                    'Last Vendor': g.lastVendor
+                };
+
+                timelineStructure.forEach(yt => {
+                    yt.months.forEach(m => {
+                        const monthItems = g.items.filter(i => i.year === yt.year && i.month === m);
+                        const monthQtySum = monthItems.reduce((sum, item) => sum + item.qty, 0);
+                        rowObj[`${yt.year} - M${m} Qty`] = monthQtySum > 0 ? monthQtySum : '';
+                    });
+                });
+
+                for (let c = 0; c < maxExpiryDatesCount; c++) {
+                    const item = g.items[c];
+                    rowObj[`Expiry Date ${c + 1}`] = item ? item.expiryDate : '';
+                    rowObj[`Qty ${c + 1}`] = item ? item.qty : '';
+                }
+                return rowObj;
+            });
+
+            const wsMatrix = XLSX.utils.json_to_sheet(matrixExportRows);
+            XLSX.utils.book_append_sheet(wb, wsMatrix, "Expiry Matrix Qty Breakdown");
+
+            const dateStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Stock_Expiry_Matrix_Report_${dateStr}.xlsx`);
+        }
+
+        function clearData() {
+            rawExcelData = [];
+            parsedRows = [];
+            fileInput.value = '';
+            document.getElementById('fileInfo').classList.add('hidden');
+            document.getElementById('summarySection').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            stockCodeColSelect.disabled = true;
+            descColSelect.disabled = true;
+            vendorColSelect.disabled = true;
+            expiryDateColSelect.disabled = true;
+            expiryQtyColSelect.disabled = true;
+            processBtn.disabled = true;
+        }
+
+        // Load Sample Demo Data Matching Image Screenshot with Expiry Qty
+        function loadDemoData() {
+            rawExcelData = [
+                ["Stock Code", "Description", "Last Vendor", "Expiry Qty", "Expiry Date"],
+                ["1100101000007", "Kanbawza Basmati Rice 2Kg", "Kanbawza Rice Trading", 6, "27/09/2026"],
+                ["1100101000007", "Kanbawza Basmati Rice 2Kg", "Kanbawza Rice Trading", 12, "15/04/2027"],
+                ["1100102000012", "Shwe Bo Paw San Rice 5Kg", "Golden Land Co., Ltd", 25, "10/08/2026"],
+                ["1100102000012", "Shwe Bo Paw San Rice 5Kg", "Golden Land Co., Ltd", 15, "22/11/2026"],
+                ["1100102000012", "Shwe Bo Paw San Rice 5Kg", "Golden Land Co., Ltd", 40, "05/01/2027"],
+                ["1100103000045", "Sunflower Cooking Oil 1L", "Myanmar Edible Oil Ltd", 50, "18/07/2026"],
+                ["1100103000045", "Sunflower Cooking Oil 1L", "Myanmar Edible Oil Ltd", 30, "30/10/2026"],
+                ["1100104000088", "Premium Condensed Milk 380g", "City Mart Logistics", 10, "11/02/2027"],
+                ["1100104000088", "Premium Condensed Milk 380g", "City Mart Logistics", 8, "18/02/2027"],
+                ["1100104000088", "Premium Condensed Milk 380g", "City Mart Logistics", 10, "25/02/2027"],
+                ["1100104000088", "Premium Condensed Milk 380g", "City Mart Logistics", 60, "08/03/2027"],
+                ["1100104000088", "Premium Condensed Milk 380g", "City Mart Logistics", 80, "14/06/2027"]
+            ];
+
+            document.getElementById('fileNameDisplay').innerText = "Stock_Expiry_Sample_Data.xlsx (with Expiry Qty Breakdown)";
+            document.getElementById('fileInfo').classList.remove('hidden');
+            populateColumnSelectors(rawExcelData);
+            processData();
+        }
+
+        function togglePythonModal() {
+            const modal = document.getElementById('pythonModal');
+            modal.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
